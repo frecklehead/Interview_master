@@ -5,10 +5,10 @@ import { Link } from "react-router-dom";
 import {toast} from "react-toastify";
 
 export default function SignIn() {
-  const[email,setemail]=useState("");
-  const[password,setpassword]=useState("");
+  const [email,setemail]= useState("");
+  const [password,setpassword]=useState("");
   const handlesignin= async(e)=>{
-    e.preventDefault();
+ 
     try {
      await signInWithEmailAndPassword(auth,email,password);
      console.log("signined");
