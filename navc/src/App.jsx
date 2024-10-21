@@ -1,6 +1,6 @@
 import Header from "./components/header";
 import { Route, Routes,Navigate } from "react-router-dom";
-import Contact from "./pages/Contact";
+import Ambulance from "./pages/Ambulance";
 import Home from "./pages/Home";
 import Services from "./pages/Services";
 import SignIn from "./pages/Signin";
@@ -20,8 +20,8 @@ function App() {
       <Header />
 
       <Routes>
-        <Route path="/" element={ user ?<Navigate to="/profile" /> : <Home />}></Route>
-        <Route path="/contact" element={<Contact />}></Route>
+        <Route path="/" element={ user ?<Navigate to="/emergency" /> : <Home />}></Route>
+        <Route path="/ambulance" element={<Ambulance/>}></Route>
         <Route path="/services" element={<Services />}></Route>
 
         <Route path="/signin" element={<SignIn />}></Route>

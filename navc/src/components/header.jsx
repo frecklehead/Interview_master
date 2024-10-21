@@ -1,17 +1,25 @@
-import React, { useState } from 'react'
+import React, { useState,useEffect } from 'react'
 import { RxHamburgerMenu } from "react-icons/rx";
 import { MdOutlineClose } from "react-icons/md";
 import {Link} from 'react-router-dom';
+import { auth } from '../firebase';
 export default function Header() {
   const [toggle ,setoggle]=useState(true);
+ 
+    const [user,setuser]=useState();
+    useEffect(()=>{
+      auth.onAuthStateChanged((user)=>{
+        setuser(user);
+      })
+    },[])
   
 
   return (
   
-    <div className='bg-green-950 p-3'>
+    <div className='bg-blue-950 p-3'>
       <div className='flex justify-between items-center'>
-        <div className='text-3xl text-white'>  
-          Sitename
+        <div className='text-3xl text-white font-mono font-semibold'>  
+        NavCare
         </div>
 
 {
@@ -22,8 +30,8 @@ export default function Header() {
 }
 
         <ul className=' hidden md:flex justify-center gap-12 text-xl text-white'>
-          <Link to='/'> Home</Link>
-         <Link to='/contact'> Contact</Link>
+          <Link to='/'> {user?"Profile":"Home"}</Link>
+         <Link to='/ambulance'> Ambulance</Link>
          <Link to='/services'> Services</Link>
          <Link to='/signin'> SignIn</Link>
          <Link to='/register'> Register</Link>
@@ -41,7 +49,7 @@ export default function Header() {
       
       `}>
           <li className='p-6'> <Link to='/' >Home          </Link></li>
-          <li className='p-6'> <Link to='/contact' >Contact         </Link></li>  <li className='p-6'> <Link to='/services' >Services        </Link></li>
+          <li className='p-6'> <Link to='/ambulance' >Ambulance       </Link></li>  <li className='p-6'> <Link to='/services' >Services        </Link></li>
           <li className='p-6'> <Link to='/signin' >SignIn      </Link></li>
           <li className='p-6'> <Link to='/register' >Register      </Link></li>
         </ul>
