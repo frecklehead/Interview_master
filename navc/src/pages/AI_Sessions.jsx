@@ -3,8 +3,7 @@ import { Briefcase, X, Check } from 'lucide-react';
 
 const BeforeInterviewDash = () => {
   const [interviewField, setInterviewField] = useState('');
-  const [interviewTitle, setInterviewTitle] = useState('');
-  const [interviewDescription, setInterviewDescription] = useState('');
+
   const [isFieldSelected, setIsFieldSelected] = useState(false);
 
   const startInterviewSetup = () => {
@@ -57,7 +56,7 @@ const BeforeInterviewDash = () => {
           </button>
         </div>
       ) : (
-        window.location.href = "/interview"
+        window.location.href ="/interview"
       )}
     </div>
   );
