@@ -14,7 +14,9 @@ const Header = () => {
     { label: 'Profile', path: '/profile' },
     { label: user ? 'Dashboard' : 'Sign In', path: user ? '/dashboard' : '/signin' },
   ];
-
+function reroute(){
+  window.location.href="/"
+}
   return (
     <div className="relative">
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg">
@@ -23,7 +25,7 @@ const Header = () => {
             {/* Logo */}
             <div className="flex items-center space-x-2">
               <BrainCircuit className="h-8 w-8 text-white" />
-              <span className="text-xl font-bold text-white">
+              <span  onClick={reroute} className="text-xl font-bold text-white">
                 Prepify
               </span>
             </div>

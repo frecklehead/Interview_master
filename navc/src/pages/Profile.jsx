@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { User, Mail, Award, Clock, LogOut, Loader2 } from "lucide-react";
+import Createsignin from "../components/createsignin";
 
 const Profile = () => {
   const [userDetails, setUserDetails] = useState(null);
@@ -140,7 +141,8 @@ const Profile = () => {
           </div>
         ) : (
           <div className="text-center py-12">
-            <p className="text-gray-500">No user data available</p>
+            <p className="text-gray-500">Not Signin yet..</p>
+           <Createsignin/>
           </div>
         )}
       </div>

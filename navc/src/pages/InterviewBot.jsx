@@ -9,109 +9,153 @@ const InterviewBot = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speechSynth, setSpeechSynth] = useState(null);
-  const [interviewState, setInterviewState] = useState("initial"); // initial, ready, questions, feedback, complete
+  const [voices, setVoices] = useState([]);
+  const [interviewState, setInterviewState] = useState("initial");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questions, setQuestions] = useState([]);
   const [candidateResponses, setCandidateResponses] = useState([]);
+  const [isQuestionAsked, setIsQuestionAsked] = useState(false);
 
+  // Initialize speech synthesis and voices
   useEffect(() => {
-    setSpeechSynth(window.speechSynthesis);
+    const synth = window.speechSynthesis;
+    setSpeechSynth(synth);
+
+    // Handle voice loading
+    const loadVoices = () => {
+      const availableVoices = synth.getVoices();
+      setVoices(availableVoices);
+    };
+
+    loadVoices();
+    synth.onvoiceschanged = loadVoices;
+
     return () => {
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
+      if (synth.speaking) {
+        synth.cancel();
       }
     };
   }, []);
 
+  
+  
+
   useEffect(() => {
-    // Start the interview process when component mounts
     if (interviewState === "initial") {
       startInterview();
     }
   }, [interviewState]);
 
-  const genAI = new GoogleGenerativeAI("AIzaSyAj82UUdKTw0n94qkjAgbsCfHwnabsqIi4");
+  // Monitor question changes
+  useEffect(() => {
+    if (questions.length > 0 && interviewState === "questions" && !isQuestionAsked) {
+      askNextQuestion();
+    }
+  }, [currentQuestionIndex, questions, interviewState]);
+
+  const genAI = new GoogleGenerativeAI("YOUR-API-KEY");
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const speakText = (text) => {
-    if (speechSynth) {
-      speechSynth.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        // Start listening for response after speaking
-        if (interviewState === "questions") {
-          setTimeout(() => {
-            handleRecord();
-          }, 1000);
-        }
-      };
-      
-      const voices = speechSynth.getVoices();
-      const englishVoice = voices.find(voice => 
-        voice.lang.startsWith('en') && voice.name.includes('Natural')
-      ) || voices.find(voice => 
-        voice.lang.startsWith('en')
-      ) || voices[0];
-
-      utterance.voice = englishVoice;
-      utterance.rate = 0.9; // Slightly slower for better clarity
-      utterance.pitch = 1;
-      
-      speechSynth.speak(utterance);
-    }
+    if (!speechSynth || !voices.length) return;
+  
+    // Cancel any ongoing speech
+    speechSynth.cancel();
+  
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Find an English voice
+    const englishVoice = voices.find(voice => 
+      voice.lang.startsWith('en') && voice.name.includes('Natural')
+    ) || voices.find(voice => 
+      voice.lang.startsWith('en')
+    ) || voices[0];
+  
+    utterance.voice = englishVoice;
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setIsQuestionAsked(true);
+    };
+  
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      if (interviewState === "questions") {
+        setTimeout(() => {
+          handleRecord();
+        }, 1000);
+      }
+  
+      // Smooth scroll to the last message
+      const chatContainer = document.querySelector('.h-96'); // Select the message container
+      if (chatContainer) {
+        chatContainer.scrollTo({
+          top: chatContainer.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    };
+  
+    speechSynth.speak(utterance);
   };
+  
 
   const fetchInterviewQuestions = async () => {
-    const prompt = `Generate 5 technical interview questions for a software developer role. 
-    Focus on fundamental concepts and problem-solving abilities. 
-    Format each question clearly and professionally, as if asked by a real interviewer. 
+    setIsLoading(true);
+    const prompt = `Generate 5 unique technical interview questions for a software developer role. 
+    Mix different topics like algorithms, system design, coding practices, and problem-solving.
+    Make questions natural and conversational.
     Return just the questions numbered 1-5, without answers.`;
 
     try {
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const questionsText = response.text();
-      // Split the response into individual questions
       const questionsList = questionsText.split(/\d+\.\s+/)
         .filter(q => q.trim().length > 0)
         .map(q => q.trim());
+      
+      if (questionsList.length === 0) throw new Error("No questions generated");
+      
       setQuestions(questionsList);
     } catch (error) {
       console.error("Error fetching questions:", error);
       setQuestions([
-        "Could you explain the difference between REST and GraphQL?",
-        "How do you handle state management in your preferred frontend framework?",
-        "Can you explain the concept of dependency injection?",
-        "What strategies do you use for optimizing database queries?",
-        "How do you approach testing in your development process?"
+        "Can you explain how you would design a scalable web application?",
+        "What's your approach to handling async operations in JavaScript?",
+        "How do you ensure code quality in your development process?",
+        "Explain the concept of REST API best practices.",
+        "How would you optimize the performance of a slow database query?"
       ]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const startInterview = async () => {
-    // Initial greeting
-    const greeting = "Hello! I'm your AI interviewer today. I'll be asking you some questions about software development. Would you like to begin the interview?";
-    addMessage("bot", greeting);
-    speakText(greeting);
-    setInterviewState("ready");
     await fetchInterviewQuestions();
+    const greeting = "Hello! I'm your AI interviewer today. I'll be asking you some technical questions about software development. Would you like to begin the interview?";
+    addMessage("bot", greeting);
+
+    setInterviewState("ready");
   };
 
   const handleUserResponse = async (userInput) => {
+    if (!userInput.trim()) return;
+    
     addMessage("user", userInput);
     
     if (interviewState === "ready") {
       if (userInput.toLowerCase().includes("yes") || userInput.toLowerCase().includes("ready")) {
-        const startMessage = "Great! Let's begin with the first question.";
+        const startMessage = "Great! Let's begin with the first question ";
         addMessage("bot", startMessage);
         speakText(startMessage);
         setInterviewState("questions");
-        setTimeout(() => askNextQuestion(), 3000);
+        setIsQuestionAsked(false);
       } else {
-        const retryMessage = "Please let me know when you're ready to start the interview.";
+        const retryMessage = "Please let me know when you're ready to start the interview ";
         addMessage("bot", retryMessage);
         speakText(retryMessage);
       }
@@ -119,16 +163,24 @@ const InterviewBot = () => {
     }
 
     if (interviewState === "questions") {
-      // Store the candidate's response
+      // Store response
       setCandidateResponses(prev => [...prev, {
         question: questions[currentQuestionIndex],
-        response: userInput
+        response: userInput,
+        timestamp: new Date().toISOString()
       }]);
 
-      // Move to next question or end interview
+      // Progress to next question
       if (currentQuestionIndex < questions.length - 1) {
-        setCurrentQuestionIndex(prev => prev + 1);
-        setTimeout(() => askNextQuestion(), 2000);
+        const transitionMessage = "Thank you. Let's move on to the next question ";
+        addMessage("bot", transitionMessage);
+        speakText(transitionMessage);
+        
+        // Wait for transition message before moving to next question
+        setTimeout(() => {
+          setCurrentQuestionIndex(prev => prev + 1);
+          setIsQuestionAsked(false);
+        }, 3000);
       } else {
         concludeInterview();
       }
@@ -136,17 +188,26 @@ const InterviewBot = () => {
   };
 
   const askNextQuestion = () => {
+    if (!questions[currentQuestionIndex]) return;
+    
     const question = questions[currentQuestionIndex];
     const formattedQuestion = `Question ${currentQuestionIndex + 1}: ${question}`;
     addMessage("bot", formattedQuestion);
     speakText(formattedQuestion);
   };
 
-  const concludeInterview = async () => {
+  const concludeInterview = () => {
     setInterviewState("complete");
-    const conclusion = "Thank you for participating in this interview. I've recorded your responses and enjoyed our conversation. Do you have any questions for me?";
+    const conclusion = "Thank you for completing the interview. I've recorded all your responses. lease end the interview to review the session";
     addMessage("bot", conclusion);
     speakText(conclusion);
+    
+    // Log interview data
+    console.log("Interview Responses:", {
+      timestamp: new Date().toISOString(),
+      questions: questions,
+      responses: candidateResponses
+    });
   };
 
   const addMessage = (type, content) => {
@@ -212,7 +273,8 @@ const InterviewBot = () => {
           </p>
         </div>
         
-        <div className="h-96 overflow-y-auto p-4 space-y-4">
+     <div className="h-96 overflow-y-auto p-4 space-y-4 scroll-smooth">
+
           {messages.map((message, index) => (
             <div
               key={index}
@@ -237,7 +299,7 @@ const InterviewBot = () => {
           {isLoading && (
             <div className="flex justify-start">
               <div className="bg-gray-200 rounded-lg p-3">
-                <p className="animate-pulse">Processing...</p>
+                <p className="animate-pulse">Preparing questions...</p>
               </div>
             </div>
           )}
@@ -246,10 +308,11 @@ const InterviewBot = () => {
         <div className="border-t p-4 flex items-center space-x-2">
           <button
             onClick={handleRecord}
+            disabled={isSpeaking || isLoading}
             className={`p-2 rounded-full ${
               isRecording 
                 ? "bg-red-500 text-white" 
-                : "bg-gray-200 hover:bg-gray-300"
+                : "bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100"
             }`}
             title={isRecording ? "Recording..." : "Start voice recording"}
           >
@@ -262,10 +325,12 @@ const InterviewBot = () => {
             onKeyPress={(e) => e.key === "Enter" && handleSend()}
             placeholder="Speak or type your response..."
             className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={isRecording || isSpeaking || isLoading}
           />
           <button
             onClick={handleSend}
-            className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
+            disabled={!inputText.trim() || isRecording || isSpeaking || isLoading}
+            className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:bg-gray-300"
             title="Send message"
           >
             <Send size={20} />
