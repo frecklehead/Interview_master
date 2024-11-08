@@ -1,7 +1,0 @@
-{
-  "dependencies": {
-    "here-maps-react": "^2.0.0",
-    "react-here-map": "^4.0.0",
-    "react-toastify": "^10.0.6"
-  }
-}
