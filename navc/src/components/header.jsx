@@ -12,7 +12,7 @@ const Header = () => {
     { label: 'Practice', path: '/practice' },
     { label: 'AI Sessions', path: '/aisessions' },
     { label: 'Profile', path: '/profile' },
-    { label: user ? 'Dashboard' : 'Sign In', path: user ? '/dashboard' : '/signin' },
+
   ];
 function reroute(){
   window.location.href="/"

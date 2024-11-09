@@ -21,7 +21,6 @@ const InterviewBot = () => {
     const synth = window.speechSynthesis;
     setSpeechSynth(synth);
 
-    // Handle voice loading
     const loadVoices = () => {
       const availableVoices = synth.getVoices();
       setVoices(availableVoices);
@@ -37,70 +36,69 @@ const InterviewBot = () => {
     };
   }, []);
 
-  
-  
-
   useEffect(() => {
     if (interviewState === "initial") {
       startInterview();
     }
   }, [interviewState]);
 
-  // Monitor question changes
+  // Monitor question changes and interview state
   useEffect(() => {
     if (questions.length > 0 && interviewState === "questions" && !isQuestionAsked) {
       askNextQuestion();
     }
-  }, [currentQuestionIndex, questions, interviewState]);
+  }, [currentQuestionIndex, questions, interviewState, isQuestionAsked]);
 
   const genAI = new GoogleGenerativeAI("YOUR-API-KEY");
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-  const speakText = (text) => {
+  const speakText = async (text) => {
     if (!speechSynth || !voices.length) return;
   
     // Cancel any ongoing speech
     speechSynth.cancel();
   
-    const utterance = new SpeechSynthesisUtterance(text);
+    return new Promise((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Find an English voice
+      const englishVoice = voices.find(voice => 
+        voice.lang.startsWith('en') && voice.name.includes('Natural')
+      ) || voices.find(voice => 
+        voice.lang.startsWith('en')
+      ) || voices[0];
     
-    // Find an English voice
-    const englishVoice = voices.find(voice => 
-      voice.lang.startsWith('en') && voice.name.includes('Natural')
-    ) || voices.find(voice => 
-      voice.lang.startsWith('en')
-    ) || voices[0];
-  
-    utterance.voice = englishVoice;
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
+      utterance.voice = englishVoice;
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        setIsQuestionAsked(true);
+      };
     
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-      setIsQuestionAsked(true);
-    };
-  
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      if (interviewState === "questions") {
-        setTimeout(() => {
-          handleRecord();
-        }, 1000);
-      }
-  
-      // Smooth scroll to the last message
-      const chatContainer = document.querySelector('.h-96'); // Select the message container
-      if (chatContainer) {
-        chatContainer.scrollTo({
-          top: chatContainer.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
-    };
-  
-    speechSynth.speak(utterance);
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        if (interviewState === "questions") {
+          setTimeout(() => {
+            handleRecord();
+          }, 1000);
+        }
+    
+        // Smooth scroll to the last message
+        const chatContainer = document.querySelector('.h-96');
+        if (chatContainer) {
+          chatContainer.scrollTo({
+            top: chatContainer.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+        resolve();
+      };
+    
+      speechSynth.speak(utterance);
+    });
   };
-  
 
   const fetchInterviewQuestions = async () => {
     setIsLoading(true);
@@ -138,7 +136,7 @@ const InterviewBot = () => {
     await fetchInterviewQuestions();
     const greeting = "Hello! I'm your AI interviewer today. I'll be asking you some technical questions about software development. Would you like to begin the interview?";
     addMessage("bot", greeting);
-
+    await speakText(greeting);
     setInterviewState("ready");
   };
 
@@ -149,60 +147,56 @@ const InterviewBot = () => {
     
     if (interviewState === "ready") {
       if (userInput.toLowerCase().includes("yes") || userInput.toLowerCase().includes("ready")) {
-        const startMessage = "Great! Let's begin with the first question ";
+        const startMessage = "Great! Let's begin with the first question.";
         addMessage("bot", startMessage);
-        speakText(startMessage);
+        await speakText(startMessage);
         setInterviewState("questions");
         setIsQuestionAsked(false);
       } else {
-        const retryMessage = "Please let me know when you're ready to start the interview ";
+        const retryMessage = "Please let me know when you're ready to start the interview.";
         addMessage("bot", retryMessage);
-        speakText(retryMessage);
+        await speakText(retryMessage);
       }
       return;
     }
 
     if (interviewState === "questions") {
-      // Store response
       setCandidateResponses(prev => [...prev, {
         question: questions[currentQuestionIndex],
         response: userInput,
         timestamp: new Date().toISOString()
       }]);
 
-      // Progress to next question
       if (currentQuestionIndex < questions.length - 1) {
-        const transitionMessage = "Thank you. Let's move on to the next question ";
+        const transitionMessage = "Thank you. Let's move on to the next question.";
         addMessage("bot", transitionMessage);
-        speakText(transitionMessage);
+        await speakText(transitionMessage);
         
-        // Wait for transition message before moving to next question
         setTimeout(() => {
           setCurrentQuestionIndex(prev => prev + 1);
           setIsQuestionAsked(false);
-        }, 3000);
+        }, 1000);
       } else {
         concludeInterview();
       }
     }
   };
 
-  const askNextQuestion = () => {
+  const askNextQuestion = async () => {
     if (!questions[currentQuestionIndex]) return;
     
     const question = questions[currentQuestionIndex];
     const formattedQuestion = `Question ${currentQuestionIndex + 1}: ${question}`;
     addMessage("bot", formattedQuestion);
-    speakText(formattedQuestion);
+    await speakText(formattedQuestion);
   };
 
-  const concludeInterview = () => {
+  const concludeInterview = async () => {
     setInterviewState("complete");
-    const conclusion = "Thank you for completing the interview. I've recorded all your responses. lease end the interview to review the session";
+    const conclusion = "Thank you for completing the interview. I've recorded all your responses. Please end call to review the interview";
     addMessage("bot", conclusion);
-    speakText(conclusion);
+    await speakText(conclusion);
     
-    // Log interview data
     console.log("Interview Responses:", {
       timestamp: new Date().toISOString(),
       questions: questions,
@@ -273,8 +267,7 @@ const InterviewBot = () => {
           </p>
         </div>
         
-     <div className="h-96 overflow-y-auto p-4 space-y-4 scroll-smooth">
-
+        <div className="h-96 overflow-y-auto p-4 space-y-4 scroll-smooth">
           {messages.map((message, index) => (
             <div
               key={index}

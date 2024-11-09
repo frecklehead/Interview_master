@@ -1,0 +1,131 @@
+const InterviewRoom = () => {
+  // ... existing video call states ...
+  const [isCallActive, setIsCallActive] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [videoStream, setVideoStream] = useState(null);
+
+  // ... existing interview states ...
+  const [messages, setMessages] = useState([]);
+  const [inputText, setInputText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechSynth, setSpeechSynth] = useState(null);
+  const [voices, setVoices] = useState([]);
+  const [interviewState, setInterviewState] = useState("initial");
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [questions, setQuestions] = useState([]);
+  const [candidateResponses, setCandidateResponses] = useState([]);
+
+  // Add this new state
+  const [isQuestionAsked, setIsQuestionAsked] = useState(false);
+
+  // ... existing refs ...
+  const videoRef = useRef(null);
+  const chatContainerRef = useRef(null);
+
+  // Replace interviewer object with bot info
+  const interviewer = {
+    name: 'AI Interviewer',
+    role: 'Technical Interview Bot',
+    company: 'TechCorp Solutions',
+    avatar: 'AI'
+  };
+
+  // ... existing speech synthesis useEffect ...
+
+  // Add this new useEffect
+  useEffect(() => {
+    if (questions.length > 0 && interviewState === "questions" && !isQuestionAsked) {
+      askNextQuestion();
+    }
+  }, [currentQuestionIndex, questions, interviewState, isQuestionAsked]);
+
+  // Modify existing speakText function
+  const speakText = async (text) => {
+    if (!speechSynth || !voices.length) return;
+    
+    speechSynth.cancel();
+    
+    return new Promise((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      // ... existing voice setup ...
+      
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        setIsQuestionAsked(true);  // Add this line
+      };
+      
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        if (interviewState === "questions") {
+          setTimeout(() => {
+            handleRecord();  // Auto-start recording
+          }, 1000);
+        }
+        resolve();
+      };
+      
+      speechSynth.speak(utterance);
+    });
+  };
+
+  // Update startInterview function
+  const startInterview = async () => {
+    await fetchInterviewQuestions();
+    const greeting = "Hello! I'm your AI interviewer today. I'll be asking you some technical questions about software development. Would you like to begin the interview?";
+    addMessage("interviewer", greeting);
+    await speakText(greeting);
+    setInterviewState("ready");
+  };
+
+  // ... rest of existing interview functions ...
+
+  // Add handleRecord function from InterviewBot
+  const handleRecord = () => {
+    if (isSpeaking) return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.onresult = async (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInputText(transcript);
+      await handleUserResponse(transcript);
+      setInputText("");
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setIsRecording(false);
+    };
+
+    recognition.start();
+  };
+
+  // ... existing video call functions ...
+
+  // ... existing JSX/return statement ...
+  // In the interviewer video/avatar section, update the text to show AI Interviewer
+  // Replace personal avatar with AI symbol or icon
+}
+
+export default InterviewRoom;
