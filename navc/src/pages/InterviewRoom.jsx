@@ -252,7 +252,8 @@ const InterviewRoom = () => {
   
       const prompt = `Generate 5 natural, conversational technical interview questions for a software developer role. 
         Do not use asterisks or special formatting. Keep questions clear and direct.
-        Format: Simple numbered list 1-5.`;
+        Format: Simple numbered list 1-5.
+        Return just the questions numbered 1-5, without answers.`;
   
       const result = await model.generateContent(prompt);
       const response = await result.response;
@@ -436,7 +437,7 @@ const InterviewRoom = () => {
     
     <div className="min-h-screen bg-gray-100">
       <div className="container mx-auto p-4">
-        <div className="grid grid-cols-2 gap-4 h-[calc(100vh-2rem)]">
+        <div className="grid  grid-cols-2 gap-4 h-[calc(100vh-2rem)] ">
           {/* Left side - Video call */}
           <div className="bg-gray-800 rounded-lg overflow-hidden shadow-xl flex flex-col">
             <div className="p-4 bg-gray-700 flex justify-between items-center">
@@ -574,11 +575,7 @@ title={isRecording ? "Recording..." : "Start voice recording"}
               </p>
             </div>
 
-            <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-4 space-y-4 scroll-smooth"
-            style={{ 
-              height: 'calc(100% - 180px)',
-              scrollBehavior: 'smooth'
-            }}>
+            <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-4 space-y-4 scroll-smooth">
               {messages.map((message, index) => (
                 <div
                   key={index}

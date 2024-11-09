@@ -15,6 +15,7 @@ const InterviewBot = () => {
   const [questions, setQuestions] = useState([]);
   const [candidateResponses, setCandidateResponses] = useState([]);
   const [isQuestionAsked, setIsQuestionAsked] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Initialize speech synthesis and voices
   useEffect(() => {
@@ -23,7 +24,9 @@ const InterviewBot = () => {
 
     const loadVoices = () => {
       const availableVoices = synth.getVoices();
-      setVoices(availableVoices);
+      if (availableVoices.length > 0) {
+        setVoices(availableVoices);
+      }
     };
 
     loadVoices();
@@ -36,11 +39,13 @@ const InterviewBot = () => {
     };
   }, []);
 
+  // Handle initial interview start
   useEffect(() => {
-    if (interviewState === "initial") {
+    if (interviewState === "initial" && !isInitialized && voices.length > 0) {
+      setIsInitialized(true);
       startInterview();
     }
-  }, [interviewState]);
+  }, [interviewState, isInitialized, voices]);
 
   // Monitor question changes and interview state
   useEffect(() => {
@@ -49,95 +54,108 @@ const InterviewBot = () => {
     }
   }, [currentQuestionIndex, questions, interviewState, isQuestionAsked]);
 
-  const genAI = new GoogleGenerativeAI("YOUR-API-KEY");
+  const genAI = new GoogleGenerativeAI("AIzaSyBYl-MSPpfn_ClaR-3fIbmxVUtyeW0rKuY");
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const speakText = async (text) => {
-    if (!speechSynth || !voices.length) return;
+    if (!speechSynth || !voices.length) {
+      console.error("Speech synthesis not ready");
+      return;
+    }
   
-    // Cancel any ongoing speech
-    speechSynth.cancel();
-  
-    return new Promise((resolve) => {
-      const utterance = new SpeechSynthesisUtterance(text);
+    return new Promise((resolve, reject) => {
+      try {
+        // Cancel any ongoing speech
+        if (speechSynth.speaking) {
+          speechSynth.cancel();
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Find an English voice
+        const englishVoice = voices.find(voice => 
+          voice.lang.startsWith('en') && voice.name.includes('Natural')
+        ) || voices.find(voice => 
+          voice.lang.startsWith('en')
+        ) || voices[0];
       
-      // Find an English voice
-      const englishVoice = voices.find(voice => 
-        voice.lang.startsWith('en') && voice.name.includes('Natural')
-      ) || voices.find(voice => 
-        voice.lang.startsWith('en')
-      ) || voices[0];
-    
-      utterance.voice = englishVoice;
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
+        utterance.voice = englishVoice;
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        
+        utterance.onstart = () => {
+          setIsSpeaking(true);
+          setIsQuestionAsked(true);
+        };
       
-      utterance.onstart = () => {
-        setIsSpeaking(true);
-        setIsQuestionAsked(true);
-      };
-    
-      utterance.onend = () => {
+        utterance.onend = () => {
+          setIsSpeaking(false);
+          if (interviewState === "questions") {
+            setTimeout(() => {
+              handleRecord();
+            }, 1000);
+          }
+      
+          // Smooth scroll to the last message
+          const chatContainer = document.querySelector('.h-96');
+          if (chatContainer) {
+            chatContainer.scrollTo({
+              top: chatContainer.scrollHeight,
+              behavior: 'smooth'
+            });
+          }
+          resolve();
+        };
+
+        utterance.onerror = (error) => {
+          console.error("Speech synthesis error:", error);
+          setIsSpeaking(false);
+          reject(error);
+        };
+      
+        speechSynth.speak(utterance);
+      } catch (error) {
+        console.error("Speech synthesis setup error:", error);
         setIsSpeaking(false);
-        if (interviewState === "questions") {
-          setTimeout(() => {
-            handleRecord();
-          }, 1000);
-        }
-    
-        // Smooth scroll to the last message
-        const chatContainer = document.querySelector('.h-96');
-        if (chatContainer) {
-          chatContainer.scrollTo({
-            top: chatContainer.scrollHeight,
-            behavior: 'smooth'
-          });
-        }
-        resolve();
-      };
-    
-      speechSynth.speak(utterance);
+        reject(error);
+      }
     });
   };
 
-  const fetchInterviewQuestions = async () => {
-    setIsLoading(true);
-    const prompt = `Generate 5 unique technical interview questions for a software developer role. 
-    Mix different topics like algorithms, system design, coding practices, and problem-solving.
-    Make questions natural and conversational.
-    Return just the questions numbered 1-5, without answers.`;
+  const handleRecord = () => {
+    if (isSpeaking) return;
 
-    try {
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const questionsText = response.text();
-      const questionsList = questionsText.split(/\d+\.\s+/)
-        .filter(q => q.trim().length > 0)
-        .map(q => q.trim());
-      
-      if (questionsList.length === 0) throw new Error("No questions generated");
-      
-      setQuestions(questionsList);
-    } catch (error) {
-      console.error("Error fetching questions:", error);
-      setQuestions([
-        "Can you explain how you would design a scalable web application?",
-        "What's your approach to handling async operations in JavaScript?",
-        "How do you ensure code quality in your development process?",
-        "Explain the concept of REST API best practices.",
-        "How would you optimize the performance of a slow database query?"
-      ]);
-    } finally {
-      setIsLoading(false);
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
     }
-  };
 
-  const startInterview = async () => {
-    await fetchInterviewQuestions();
-    const greeting = "Hello! I'm your AI interviewer today. I'll be asking you some technical questions about software development. Would you like to begin the interview?";
-    addMessage("bot", greeting);
-    await speakText(greeting);
-    setInterviewState("ready");
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.onresult = async (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInputText(transcript);
+      await handleUserResponse(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setIsRecording(false);
+    };
+
+    recognition.start();
   };
 
   const handleUserResponse = async (userInput) => {
@@ -182,6 +200,63 @@ const InterviewBot = () => {
     }
   };
 
+  const handleSend = async () => {
+    if (!inputText.trim()) return;
+    await handleUserResponse(inputText);
+    setInputText("");
+  };
+
+  const fetchInterviewQuestions = async () => {
+    setIsLoading(true);
+    const prompt = `Generate 5 unique technical interview questions for a software developer role. 
+    Mix different topics like algorithms, system design, coding practices, and problem-solving.
+    Make questions natural and conversational.
+    Return just the questions numbered 1-5, without answers.`;
+
+    try {
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const questionsText = response.text();
+      const questionsList = questionsText.split(/\d+\.\s+/)
+        .filter(q => q.trim().length > 0)
+        .map(q => q.trim());
+      
+      if (questionsList.length === 0) throw new Error("No questions generated");
+      
+      setQuestions(questionsList);
+    } catch (error) {
+      console.error("Error fetching questions:", error);
+      setQuestions([
+        "Can you explain how you would design a scalable web application?",
+        "What's your approach to handling async operations in JavaScript?",
+        "How do you ensure code quality in your development process?",
+        "Explain the concept of REST API best practices.",
+        "How would you optimize the performance of a slow database query?"
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startInterview = async () => {
+    if (!voices.length) {
+      console.error("Voices not loaded yet");
+      return;
+    }
+
+    await fetchInterviewQuestions();
+    const greeting = "Hello! I'm your AI interviewer today. I'll be asking you some technical questions about software development. Would you like to begin the interview?";
+    addMessage("bot", greeting);
+    try {
+      await speakText(greeting);
+      setInterviewState("ready");
+    } catch (error) {
+      console.error("Error speaking greeting:", error);
+      // Still set the state even if speech fails
+      setInterviewState("ready");
+    }
+  };
+
   const askNextQuestion = async () => {
     if (!questions[currentQuestionIndex]) return;
     
@@ -210,48 +285,6 @@ const InterviewBot = () => {
       content,
       timestamp: new Date().toLocaleTimeString()
     }]);
-  };
-
-  const handleRecord = () => {
-    if (isSpeaking) return;
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => {
-      setIsRecording(true);
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-
-    recognition.onresult = async (event) => {
-      const transcript = event.results[0][0].transcript;
-      setInputText(transcript);
-      await handleUserResponse(transcript);
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event.error);
-      setIsRecording(false);
-    };
-
-    recognition.start();
-  };
-
-  const handleSend = async () => {
-    if (!inputText.trim()) return;
-    await handleUserResponse(inputText);
-    setInputText("");
   };
 
   return (
