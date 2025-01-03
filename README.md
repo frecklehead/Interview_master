@@ -1,5 +1,7 @@
 # AI Interviewer
 
+Project Link: [](https://youtube.com/shorts/RjNvuGcEU8s)
+
 An intelligent interviewing application that simulates real job interviews using AI to help candidates practice and improve their interviewing skills.
 
 ## Features
@@ -61,7 +63,7 @@ npm run dev
 - Firebase Authentication
 - MongoDB
 
-```
+
 
 ## Contributing
 
@@ -75,9 +77,8 @@ npm run dev
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
 
-## Contact
 
-Project Link: [](https://youtube.com/shorts/RjNvuGcEU8s)
+
 
 ## Acknowledgments
 
