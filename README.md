@@ -24,18 +24,18 @@ An intelligent interviewing application that simulates real job interviews using
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/ai-interviewer.git
-cd ai-interviewer
+git clone https:https://github.com/frecklehead/Interview_master
+
 ```
 
-2. Install dependencies:
+2. Install dependencies:cd ai-interviewer
 ```bash
 npm install
 ```
 
 3. Create a `.env` file in the root directory and add your API keys:
 ```
-OPENAI_API_KEY=your_openai_api_key
+OPENAI_API_KEY=yourgemini_api_key
 ```
 
 4. Start the development server:
@@ -61,17 +61,6 @@ npm run dev
 - Firebase Authentication
 - MongoDB
 
-## Project Structure
-
-```
-ai-interviewer/
-├── components/
-├── pages/
-├── public/
-├── styles/
-├── utils/
-├── lib/
-└── config/
 ```
 
 ## Contributing
